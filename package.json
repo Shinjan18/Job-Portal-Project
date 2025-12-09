@@ -1,0 +1,23 @@
+{
+  "name": "job-portal-project",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "client": "npm run dev --prefix client",
+    "server": "npm run dev --prefix server",
+    "setup:env": "node scripts/writeEnv.js",
+    "predev": "npx kill-port 5173 5000 || true",
+    "dev": "npm run setup:env && npx kill-port 5173 5000 || true && concurrently \"npm run server\" \"npm run client\"",
+    "start": "node ./scripts/start.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "axios": "^1.13.0"
+  }
+}
