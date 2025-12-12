@@ -1,0 +1,18 @@
+{
+  "watch": ["src"],
+  "ext": "js,json",
+  "ignore": [
+    "run_logs/*",
+    "uploads/*",
+    "../client/*",
+    "node_modules/*",
+    ".git/*"
+  ],
+  "delay": "250"
+}
+
+
+
+
+
+
