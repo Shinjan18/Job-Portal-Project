@@ -1,17 +1,14 @@
-import axios from 'axios'
+// client/src/api.ts
+// Single source of truth for API base URL used by the app.
 
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
-  withCredentials: true
-})
+export const API_BASE: string =
+  (import.meta as any).env?.VITE_API_BASE_URL?.trim() ||
+  'https://job-portal-backend-itvc.onrender.com/api';
 
-api.interceptors.request.use((config) => {
-	const token = localStorage.getItem('token')
-	if (token) config.headers.Authorization = `Bearer ${token}`
-	return config
-})
-
-export default api
-
-
-
+// Helper to build endpoints without accidentally doubling /api
+export function endpoint(path: string) {
+  // remove any leading slash from path, and ensure API_BASE does not end with slash
+  const base = API_BASE.replace(/\/$/, '');
+  const trimmed = path.replace(/^\/+/, '');
+  return ${base}/${trimmed};
+}
