@@ -1,6 +1,6 @@
+// client/src/pages/jobs/JobsPage.jsx
 import { useState, useEffect } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
-import { searchJobs } from '../../services/jobService';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { debounce } from 'lodash';
 
@@ -21,6 +21,9 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import SearchBar from '../../components/common/SearchBar';
 import Pagination from '../../components/common/Pagination';
 
+// API helper
+import { endpoint } from '../../api';
+
 // Constants
 const JOB_TYPES = ['Full-time', 'Part-time', 'Contract', 'Internship', 'Temporary', 'Remote'];
 const EXPERIENCE_LEVELS = ['Entry Level', 'Mid Level', 'Senior Level', 'Lead', 'Manager'];
@@ -37,7 +40,7 @@ const JobsPage = () => {
   const [loading, setLoading] = useState(true);
   const [totalJobs, setTotalJobs] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
-  
+
   // Get query parameters
   const page = parseInt(searchParams.get('page') || '1');
   const limit = parseInt(searchParams.get('limit') || '10');
@@ -61,20 +64,31 @@ const JobsPage = () => {
     const fetchJobs = async () => {
       try {
         setLoading(true);
-        
+
         // Build query params object
         const queryParams = {
           page,
           limit,
           q: searchQuery,
           location,
-          jobType,
+          type: jobType,
           experience,
           salary: salaryRange,
           sort: sortBy,
         };
 
-        const data = await searchJobs(queryParams);
+        // Build query string
+        const qs = new URLSearchParams(
+          Object.entries(queryParams).reduce((acc, [k, v]) => {
+            if (v !== undefined && v !== null && v !== '') acc[k] = v;
+            return acc;
+          }, {})
+        ).toString();
+
+        const res = await fetch(endpoint(`jobs?${qs}`));
+        if (!res.ok) throw new Error(`HTTP ${res.status} - ${res.statusText}`);
+        const data = await res.json();
+
         setJobs(data.jobs || []);
         setTotalJobs(data.total || 0);
       } catch (error) {
@@ -86,6 +100,7 @@ const JobsPage = () => {
     };
 
     fetchJobs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, limit, searchQuery, location, jobType, experience, salaryRange, sortBy]);
 
   // Debounced search function
@@ -153,7 +168,7 @@ const JobsPage = () => {
     setSelectedExperience([]);
     setSelectedSalary('');
     setSelectedSort('newest');
-    
+
     // Reset URL params
     setSearchParams({
       page: '1',
@@ -165,7 +180,7 @@ const JobsPage = () => {
   // Update URL search params
   const updateSearchParams = (updates) => {
     const params = new URLSearchParams(searchParams);
-    
+
     // Apply updates
     Object.entries(updates).forEach(([key, value]) => {
       if (value) {
@@ -174,7 +189,7 @@ const JobsPage = () => {
         params.delete(key);
       }
     });
-    
+
     setSearchParams(params);
   };
 
@@ -197,7 +212,7 @@ const JobsPage = () => {
               <span className="block">Find your dream job</span>
               <span className="block text-teal-200">Browse {totalJobs}+ opportunities</span>
             </h2>
-            
+
             {/* Search Bar */}
             <div className="mt-8 max-w-3xl">
               <div className="flex flex-col space-y-4 sm:flex-row sm:space-y-0 sm:space-x-4">
@@ -462,7 +477,7 @@ const JobsPage = () => {
                 {jobs.map((job) => (
                   <JobCard key={job._id} job={job} />
                 ))}
-                
+
                 {/* Pagination */}
                 {totalPages > 1 && (
                   <div className="mt-8">
