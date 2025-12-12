@@ -1,14 +1,33 @@
-// client/src/api.ts
-// Single source of truth for API base URL used by the app.
+// src/api.ts
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
-export const API_BASE: string =
-  (import.meta as any).env?.VITE_API_BASE_URL?.trim() ||
-  'https://job-portal-backend-itvc.onrender.com/api';
-
-// Helper to build endpoints without accidentally doubling /api
-export function endpoint(path: string) {
-  // remove any leading slash from path, and ensure API_BASE does not end with slash
-  const base = API_BASE.replace(/\/$/, '');
-  const trimmed = path.replace(/^\/+/, '');
-  return ${base}/${trimmed};
+if (!BASE_URL) {
+  console.warn("⚠️ VITE_API_BASE_URL is missing");
 }
+
+export const apiClient = {
+  async get(path: string) {
+    const res = await fetch(`${BASE_URL}${path}`);
+    if (!res.ok) throw new Error(`GET ${path} failed`);
+    return res.json();
+  },
+
+  async post(path: string, data: any) {
+    const res = await fetch(`${BASE_URL}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error(`POST ${path} failed`);
+    return res.json();
+  },
+
+  async postForm(path: string, formData: FormData) {
+    const res = await fetch(`${BASE_URL}${path}`, {
+      method: "POST",
+      body: formData,
+    });
+    if (!res.ok) throw new Error(`POST form ${path} failed`);
+    return res.json();
+  }
+};
