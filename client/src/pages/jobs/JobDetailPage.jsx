@@ -1,6 +1,6 @@
+// client/src/pages/jobs/JobDetailPage.jsx
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { getJobById, applyForJob } from '../../services/jobService';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { formatDistanceToNow } from 'date-fns';
@@ -19,12 +19,13 @@ import {
 } from '@heroicons/react/24/outline';
 import { BookmarkIcon as BookmarkIconSolid } from '@heroicons/react/24/solid';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+import { endpoint } from '../../api';
 
 const JobDetailPage = () => {
   const { id } = useParams();
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  
+
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
@@ -40,16 +41,14 @@ const JobDetailPage = () => {
     const fetchJobDetails = async () => {
       try {
         setLoading(true);
-        // Fetch real job data from API
-        const data = await getJobById(id);
-        setJob(data);
-        
-        // In a real app, we would also fetch:
-        // - Similar jobs based on skills/location
-        // - Other jobs from the same company
-        // - Application status for the current user
-        
-        // Mock similar jobs for now
+        const res = await fetch(endpoint(`jobs/${id}`));
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        // `data` may be { job: {...} } or the job object itself depending on backend
+        const jobData = data.job || data;
+        setJob(jobData);
+
+        // Mock similar & company jobs (keep as before)
         setSimilarJobs([
           {
             _id: '1',
@@ -80,8 +79,7 @@ const JobDetailPage = () => {
             postedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
           },
         ]);
-        
-        // Mock company jobs for now
+
         setCompanyJobs([
           {
             _id: '4',
@@ -102,11 +100,9 @@ const JobDetailPage = () => {
             postedAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
           },
         ]);
-        
-        // Check if user has already applied
-        // In a real app, this would be an API call
-        setApplicationStatus(null); // 'applied', 'rejected', 'shortlisted', etc.
-        
+
+        // Application status check left as null (requires backend support)
+        setApplicationStatus(null);
       } catch (error) {
         console.error('Error fetching job details:', error);
         toast.error('Failed to load job details');
@@ -114,33 +110,44 @@ const JobDetailPage = () => {
         setLoading(false);
       }
     };
-    
+
     fetchJobDetails();
   }, [id]);
-  
+
   const handleApply = async () => {
     if (!isAuthenticated) {
       toast.error('Please log in to apply for this job');
       navigate('/login', { state: { from: `/jobs/${id}` } });
       return;
     }
-    
+
     if (!resumeFile) {
       toast.error('Please upload your resume');
       return;
     }
-    
+
     try {
       setApplying(true);
-      
-      // Create form data for file upload
+
       const formData = new FormData();
       formData.append('resume', resumeFile);
       formData.append('coverLetter', coverLetter);
-      
-      // Submit application using the API
-      await applyForJob(id, formData);
-      
+
+      // If your backend expects authenticated apply, include Authorization header
+      const headers = {};
+      if (user && user.token) headers['Authorization'] = `Bearer ${user.token}`;
+
+      const res = await fetch(endpoint(`jobs/${id}/apply`), {
+        method: 'POST',
+        body: formData,
+        headers,
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => res.statusText);
+        throw new Error(`Apply failed: ${res.status} ${errText}`);
+      }
+
       setApplicationStatus('applied');
       toast.success('Application submitted successfully!');
     } catch (error) {
@@ -150,24 +157,23 @@ const JobDetailPage = () => {
       setApplying(false);
     }
   };
-  
+
   const handleSaveJob = () => {
-    // In a real app, this would be an API call to save/unsave the job
     setSaved(!saved);
     toast.success(saved ? 'Job removed from saved jobs' : 'Job saved successfully');
   };
-  
+
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      if (file.size > 5 * 1024 * 1024) {
         toast.error('File size should be less than 5MB');
         return;
       }
       setResumeFile(file);
     }
   };
-  
+
   if (loading || !job) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -175,10 +181,10 @@ const JobDetailPage = () => {
       </div>
     );
   }
-  
-  const postedAgo = formatDistanceToNow(new Date(job.postedAt), { addSuffix: true });
-  const deadline = new Date(job.applicationDeadline).toLocaleDateString();
-  
+
+  const postedAgo = job.postedAt ? formatDistanceToNow(new Date(job.postedAt), { addSuffix: true }) : '';
+  const deadline = job.applicationDeadline ? new Date(job.applicationDeadline).toLocaleDateString() : 'N/A';
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -195,7 +201,7 @@ const JobDetailPage = () => {
           </div>
         </div>
       </div>
-      
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="lg:flex lg:space-x-8">
           {/* Main Content */}
@@ -243,7 +249,7 @@ const JobDetailPage = () => {
                     </button>
                   </div>
                 </div>
-                
+
                 <div className="mt-4 flex flex-wrap gap-4 text-sm text-gray-500">
                   <div className="flex items-center">
                     <MapPinIcon className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" />
@@ -258,17 +264,17 @@ const JobDetailPage = () => {
                     Posted {postedAgo}
                   </div>
                 </div>
-                
+
                 <div className="mt-4">
                   <div className="flex items-center">
                     <span className="text-sm text-gray-500">
-                      <span className="font-medium text-gray-900">{job.applicants}</span> applicants • 
-                      <span className="font-medium text-gray-900 ml-1">{job.views}</span> views
+                      <span className="font-medium text-gray-900">{job.applicants || 0}</span> applicants • 
+                      <span className="font-medium text-gray-900 ml-1">{job.views || 0}</span> views
                     </span>
                   </div>
                 </div>
               </div>
-              
+
               <div className="border-t border-gray-200 px-4 py-5 sm:px-6">
                 <div className="border-b border-gray-200">
                   <nav className="-mb-px flex space-x-8">
@@ -304,38 +310,38 @@ const JobDetailPage = () => {
                     </button>
                   </nav>
                 </div>
-                
+
                 <div className="mt-6">
                   {activeTab === 'description' && (
                     <div className="prose max-w-none">
                       <h3 className="text-lg font-medium text-gray-900">Job Description</h3>
                       <p className="mt-2 text-gray-700">{job.description}</p>
-                      
+
                       <h4 className="mt-6 text-md font-medium text-gray-900">Requirements</h4>
                       <ul className="mt-2 list-disc pl-5 text-gray-700 space-y-1">
-                        {job.requirements.map((req, index) => (
+                        {(job.requirements || []).map((req, index) => (
                           <li key={index}>{req}</li>
                         ))}
                       </ul>
-                      
+
                       <h4 className="mt-6 text-md font-medium text-gray-900">Responsibilities</h4>
                       <ul className="mt-2 list-disc pl-5 text-gray-700 space-y-1">
-                        {job.responsibilities.map((resp, index) => (
+                        {(job.responsibilities || []).map((resp, index) => (
                           <li key={index}>{resp}</li>
                         ))}
                       </ul>
-                      
+
                       <h4 className="mt-6 text-md font-medium text-gray-900">Benefits</h4>
                       <ul className="mt-2 list-disc pl-5 text-gray-700 space-y-1">
-                        {job.benefits.map((benefit, index) => (
+                        {(job.benefits || []).map((benefit, index) => (
                           <li key={index}>{benefit}</li>
                         ))}
                       </ul>
-                      
+
                       <div className="mt-6">
                         <h4 className="text-md font-medium text-gray-900">Skills Required</h4>
                         <div className="mt-2 flex flex-wrap gap-2">
-                          {job.skills.map((skill, index) => (
+                          {(job.skills || []).map((skill, index) => (
                             <span
                               key={index}
                               className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-teal-100 text-teal-800"
@@ -347,7 +353,7 @@ const JobDetailPage = () => {
                       </div>
                     </div>
                   )}
-                  
+
                   {activeTab === 'company' && (
                     <div className="prose max-w-none">
                       <div className="flex items-center">
@@ -361,16 +367,16 @@ const JobDetailPage = () => {
                           <p className="text-sm text-gray-500">{job.jobCategory}</p>
                         </div>
                       </div>
-                      
+
                       <h4 className="mt-6 text-md font-medium text-gray-900">About Us</h4>
                       <p className="mt-2 text-gray-700">{job.companyDescription}</p>
-                      
+
                       <h4 className="mt-6 text-md font-medium text-gray-900">Company Culture</h4>
                       <p className="mt-2 text-gray-700">
                         At {job.company}, we value innovation, collaboration, and a strong work-life balance. 
                         Our team is made up of talented individuals who are passionate about technology and making an impact.
                       </p>
-                      
+
                       <h4 className="mt-6 text-md font-medium text-gray-900">Work Environment</h4>
                       <p className="mt-2 text-gray-700">
                         • {job.workLocation} work options available<br />
@@ -380,16 +386,16 @@ const JobDetailPage = () => {
                       </p>
                     </div>
                   )}
-                  
+
                   {activeTab === 'application' && (
                     <div className="prose max-w-none">
                       <h3 className="text-lg font-medium text-gray-900">Application Process</h3>
                       <p className="mt-2 text-gray-700">
                         Here's what you can expect during the application process for the {job.title} position at {job.company}:
                       </p>
-                      
+
                       <ol className="mt-4 space-y-4">
-                        {job.applicationProcess.map((step, index) => (
+                        {(job.applicationProcess || []).map((step, index) => (
                           <li key={index} className="flex items-start">
                             <div className="flex-shrink-0 flex items-center justify-center h-6 w-6 rounded-full bg-teal-100 text-teal-800 text-sm font-medium">
                               {index + 1}
@@ -398,7 +404,7 @@ const JobDetailPage = () => {
                           </li>
                         ))}
                       </ol>
-                      
+
                       <div className="mt-6 p-4 bg-blue-50 rounded-md">
                         <h4 className="text-md font-medium text-blue-800">Application Deadline</h4>
                         <p className="mt-1 text-blue-700">
@@ -409,7 +415,7 @@ const JobDetailPage = () => {
                   )}
                 </div>
               </div>
-              
+
               <div className="bg-gray-50 px-4 py-4 sm:px-6 flex justify-end space-x-3">
                 {applicationStatus === 'applied' ? (
                   <div className="flex items-center text-teal-600">
@@ -449,7 +455,7 @@ const JobDetailPage = () => {
                 )}
               </div>
             </div>
-            
+
             {/* Similar Jobs */}
             <div className="bg-white shadow overflow-hidden sm:rounded-lg">
               <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
@@ -482,7 +488,7 @@ const JobDetailPage = () => {
               </div>
             </div>
           </div>
-          
+
           {/* Sidebar */}
           <div className="mt-8 lg:mt-0 lg:w-1/3 space-y-6">
             {/* Application Status */}
@@ -535,7 +541,7 @@ const JobDetailPage = () => {
                 </div>
               </div>
             )}
-            
+
             {/* About the Employer */}
             <div className="bg-white shadow overflow-hidden sm:rounded-lg">
               <div className="px-4 py-5 sm:px-6">
@@ -567,7 +573,7 @@ const JobDetailPage = () => {
                   </Link>
                 </div>
               </div>
-              
+
               <div className="bg-gray-50 px-4 py-4 sm:px-6">
                 <h4 className="text-sm font-medium text-gray-900">Company Details</h4>
                 <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-2 text-sm">
@@ -594,7 +600,7 @@ const JobDetailPage = () => {
                 </dl>
               </div>
             </div>
-            
+
             {/* Other Jobs from this Company */}
             {companyJobs.length > 0 && (
               <div className="bg-white shadow overflow-hidden sm:rounded-lg">
@@ -629,7 +635,7 @@ const JobDetailPage = () => {
                 </div>
               </div>
             )}
-            
+
             {/* Job Alerts */}
             <div className="bg-white shadow overflow-hidden sm:rounded-lg">
               <div className="px-4 py-5 sm:px-6">
@@ -656,7 +662,7 @@ const JobDetailPage = () => {
             </div>
           </div>
         </div>
-      </div>
+      </div> 
     </div>
   );
 };
