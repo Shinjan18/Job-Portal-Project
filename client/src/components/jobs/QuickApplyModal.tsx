@@ -41,14 +41,24 @@ export const QuickApplyModal = ({
     try {
       setIsSubmitting(true);
       setError('');
+      console.log('Submitting application...');
       const result = await jobService.quickApply(jobId, formData);
-      if (result.trackToken) {
-        setTrackingUrl(`/track-application/${result.trackToken}?email=${encodeURIComponent(data.email)}`);
+      console.log('Application submitted successfully:', result);
+      
+      if (result.success && result.trackToken) {
+        const trackUrl = `/track-application/${result.trackToken}?email=${encodeURIComponent(data.email)}`;
+        console.log('Setting tracking URL:', trackUrl);
+        setTrackingUrl(trackUrl);
+      } else {
+        console.warn('No trackToken in response:', result);
       }
+      
       setIsSubmitted(true);
       onSuccess(result);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to submit application');
+      const errorMessage = err.response?.data?.message || 'Failed to submit application';
+      console.error('Error submitting application:', errorMessage, err);
+      setError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -235,6 +245,10 @@ export const QuickApplyModal = ({
                     <a
                       href={trackingUrl}
                       className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        window.location.href = trackingUrl;
+                      }}
                     >
                       Track My Application
                     </a>
