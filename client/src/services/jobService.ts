@@ -93,9 +93,29 @@ export const jobService = {
   },
 
   // Track application status
-  trackApplication: async (token: string) => {
-    const response = await apiClient.get(`/applications/track/${token}`);
-    return response.data;
+  trackApplication: async (token: string): Promise<{
+    success: boolean;
+    data?: {
+      _id: string;
+      job: string | { _id: string; title: string; company: string };
+      applicant: string | { _id: string; name: string; email: string };
+      email: string;
+      status: string;
+      resumeUrl: string;
+      pdfUrl?: string;
+      message?: string;
+      createdAt: string;
+      updatedAt: string;
+    };
+    message?: string;
+  }> => {
+    try {
+      const response = await apiClient.get(`/applications/track/${token}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error tracking application:', error);
+      throw error;
+    }
   },
 
   // Get all companies

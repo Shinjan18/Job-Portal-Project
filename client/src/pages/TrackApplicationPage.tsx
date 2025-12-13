@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { jobService } from '../services/jobService';
 
 export const TrackApplicationPage = () => {
   const { token } = useParams();
+  const [searchParams] = useSearchParams();
+  const email = searchParams.get('email');
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -19,21 +21,30 @@ export const TrackApplicationPage = () => {
 
       try {
         setLoading(true);
+        setError('');
         const data = await jobService.trackApplication(token);
+        
+        // Verify email matches if provided in URL
+        if (email && data.data?.email && data.data.email.toLowerCase() !== email.toLowerCase()) {
+          setError('The email in the URL does not match the application email');
+          return;
+        }
+        
         if (data.success && data.data) {
           setApplication(data.data);
         } else {
-          setError('Application not found');
+          setError(data.message || 'Application not found');
         }
       } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to fetch application');
+        console.error('Error fetching application:', err);
+        setError(err.response?.data?.message || 'Failed to fetch application. Please check your internet connection and try again.');
       } finally {
         setLoading(false);
       }
     };
 
     fetchApplication();
-  }, [token]);
+  }, [token, email]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
