@@ -192,15 +192,18 @@ const JobsPage = () => {
     setSelectedSort(sort);
   };
 
-  // Clear all filters
+  // Clear all filters and reset to defaults
   const clearAllFilters = () => {
+    // Reset all filter states
     setSearchInput('');
     setLocationInput('');
     setSelectedJobTypes([]);
     setSelectedExperience([]);
     setSelectedSalary('');
     setSelectedSort('newest');
-    setSearchParams({});
+    
+    // Reset URL parameters to default (will trigger refetch via useEffect)
+    setSearchParams({ page: '1', limit: '10' });
   };
 
   // Update URL search params
