@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { jobService } from '../../services/jobService';
 
@@ -19,8 +19,9 @@ export const QuickApplyModal = ({
 }: QuickApplyModalProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const { register, handleSubmit, formState: { errors } } = useForm();
+  const { register, handleSubmit, formState: { errors }, setValue, trigger } = useForm();
   const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const onSubmit = async (data: any) => {
     if (!resumeFile) {
@@ -49,7 +50,10 @@ export const QuickApplyModal = ({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setResumeFile(e.target.files[0]);
+      const file = e.target.files[0];
+      setResumeFile(file);
+      setValue('resume', file.name); // Update form value
+      trigger('resume'); // Trigger validation
     }
   };
 
@@ -137,15 +141,42 @@ export const QuickApplyModal = ({
               Resume (PDF, DOC, DOCX) *
             </label>
             <input
-              id="resume"
               type="file"
+              id="resume"
               accept=".pdf,.doc,.docx"
+              {...register('resume', { required: 'Resume is required' })}
               onChange={handleFileChange}
-              className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-              disabled={isSubmitting}
+              className="hidden"
+              ref={fileInputRef}
             />
-            {!resumeFile && errors.resume && (
-              <p className="text-red-500 text-xs mt-1">Please upload your resume</p>
+            <div className="flex items-center">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 rounded-md hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                disabled={isSubmitting}
+              >
+                {resumeFile ? resumeFile.name : 'Choose File'}
+              </button>
+              {resumeFile && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setResumeFile(null);
+                    setValue('resume', '');
+                    if (fileInputRef.current) {
+                      fileInputRef.current.value = '';
+                    }
+                  }}
+                  className="ml-2 text-sm text-red-600 hover:text-red-800"
+                  disabled={isSubmitting}
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+            {errors.resume && (
+              <p className="text-red-500 text-xs mt-1">{errors.resume.message as string}</p>
             )}
           </div>
           

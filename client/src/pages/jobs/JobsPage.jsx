@@ -79,22 +79,38 @@ const JobsPage = () => {
   const [selectedSalary, setSelectedSalary] = useState(salaryRange || '');
   const [selectedSort, setSelectedSort] = useState(sortBy);
 
-  // Fetch jobs when filters change
+  // Update URL when filters change
+  useEffect(() => {
+    const params = new URLSearchParams();
+    
+    if (page > 1) params.set('page', page);
+    if (searchQuery) params.set('q', searchQuery);
+    if (location) params.set('location', location);
+    if (selectedJobTypes.length > 0) params.set('type', selectedJobTypes.join(','));
+    if (selectedExperience.length > 0) params.set('experience', selectedExperience.join(','));
+    if (selectedSalary) params.set('salary', selectedSalary);
+    if (selectedSort !== 'newest') params.set('sort', selectedSort);
+    
+    // Update URL without page reload
+    setSearchParams(params, { replace: true });
+  }, [page, searchQuery, location, selectedJobTypes, selectedExperience, selectedSalary, selectedSort, setSearchParams]);
+
+  // Fetch jobs when URL params change
   useEffect(() => {
     const fetchJobs = async () => {
       try {
         setLoading(true);
 
-        // Build query params object
+        // Build query params object from URL
         const queryParams = {
           page,
           limit,
           q: searchQuery,
           location,
-          type: jobType,
-          experience,
-          salary: salaryRange,
-          sort: sortBy,
+          type: selectedJobTypes.join(','),
+          experience: selectedExperience.join(','),
+          salary: selectedSalary,
+          sort: selectedSort,
         };
 
         // Build query string
@@ -136,12 +152,11 @@ const JobsPage = () => {
     updateSearchParams({ q: value, page: 1 });
   }, 500);
 
-  // Handle search input change
-  const handleSearchChange = (e) => {
-    const value = e.target.value;
+  // Handle search input change with debounce
+  const handleSearch = debounce((value) => {
     setSearchInput(value);
-    debouncedSearch(value);
-  };
+    // The URL will be updated by the effect above
+  }, 500);
 
   // Handle location input change
   const handleLocationChange = (e) => {
@@ -150,59 +165,42 @@ const JobsPage = () => {
     updateSearchParams({ location: value, page: 1 });
   };
 
-  // Toggle job type filter
-  const toggleJobType = (type) => {
-    let newTypes;
-    if (selectedJobTypes.includes(type)) {
-      newTypes = selectedJobTypes.filter((t) => t !== type);
-    } else {
-      newTypes = [...selectedJobTypes, type];
-    }
-    setSelectedJobTypes(newTypes);
-    updateSearchParams({ type: newTypes.join(','), page: 1 });
+  // Handle filter changes
+  const handleJobTypeChange = (type) => {
+    setSelectedJobTypes(prev => {
+      const newTypes = prev.includes(type) 
+        ? prev.filter(t => t !== type) 
+        : [...prev, type];
+      return newTypes;
+    });
   };
 
-  // Toggle experience level filter
-  const toggleExperience = (level) => {
-    let newLevels;
-    if (selectedExperience.includes(level)) {
-      newLevels = selectedExperience.filter((l) => l !== level);
-    } else {
-      newLevels = [...selectedExperience, level];
-    }
-    setSelectedExperience(newLevels);
-    updateSearchParams({ experience: newLevels.join(','), page: 1 });
+  const handleExperienceChange = (level) => {
+    setSelectedExperience(prev => {
+      const newLevels = prev.includes(level)
+        ? prev.filter(l => l !== level)
+        : [...prev, level];
+      return newLevels;
+    });
   };
 
-  // Handle salary range change
   const handleSalaryChange = (range) => {
-    const newSalary = selectedSalary === range ? '' : range;
-    setSelectedSalary(newSalary);
-    updateSearchParams({ salary: newSalary, page: 1 });
+    setSelectedSalary(prev => prev === range ? '' : range);
   };
 
-  // Handle sort change
-  const handleSortChange = (e) => {
-    const value = e.target.value;
-    setSelectedSort(value);
-    updateSearchParams({ sort: value, page: 1 });
+  const handleSortChange = (sort) => {
+    setSelectedSort(sort);
   };
 
   // Clear all filters
-  const clearFilters = () => {
+  const clearAllFilters = () => {
     setSearchInput('');
     setLocationInput('');
     setSelectedJobTypes([]);
     setSelectedExperience([]);
     setSelectedSalary('');
     setSelectedSort('newest');
-
-    // Reset URL params
-    setSearchParams({
-      page: '1',
-      limit: '10',
-      sort: 'newest',
-    });
+    setSearchParams({});
   };
 
   // Update URL search params
@@ -247,7 +245,7 @@ const JobsPage = () => {
                 <div className="flex-1">
                   <SearchBar
                     value={searchInput}
-                    onChange={handleSearchChange}
+                    onChange={handleSearch}
                     placeholder="Job title, keywords, or company"
                     icon={<BriefcaseIcon className="h-5 w-5 text-gray-400" />}
                   />
