@@ -35,10 +35,15 @@ export const JobDetailPage = () => {
     fetchJob();
   }, [id]);
 
-  const handleQuickApplySuccess = (result: { trackToken: string }) => {
-    setApplied(true);
-    setTrackToken(result.trackToken);
-    setShowQuickApply(false);
+  const handleQuickApplySuccess = (data: { success: boolean; trackToken?: string; message?: string }) => {
+    if (data.success && data.trackToken) {
+      setApplied(true);
+      setTrackToken(data.trackToken);
+      setShowQuickApply(false);
+    } else if (data.message) {
+      // Handle error message if needed
+      console.error('Quick apply failed:', data.message);
+    }
   };
 
   const formatDate = (dateString: string) => {
