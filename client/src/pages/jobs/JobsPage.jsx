@@ -202,8 +202,29 @@ const JobsPage = () => {
     setSelectedSalary('');
     setSelectedSort('newest');
     
-    // Reset URL parameters to default (will trigger refetch via useEffect)
-    setSearchParams({ page: '1', limit: '10' });
+    // Reset URL parameters to default and trigger refetch
+    setSearchParams({ 
+      page: '1', 
+      limit: '10',
+      q: '',
+      location: '',
+      type: '',
+      experience: '',
+      salary: '',
+      sort: 'newest'
+    });
+    
+    // Force a refetch with default parameters
+    fetchJobs({ 
+      page: 1, 
+      limit: 10,
+      q: '',
+      location: '',
+      type: '',
+      experience: '',
+      salary: '',
+      sort: 'newest'
+    });
   };
 
   // Update URL search params
@@ -367,7 +388,7 @@ const JobsPage = () => {
                 </div>
 
                 <button
-                  onClick={clearFilters}
+                  onClick={clearAllFilters}
                   className="w-full text-center text-sm font-medium text-teal-600 hover:text-teal-700"
                 >
                   Clear all filters
@@ -383,7 +404,7 @@ const JobsPage = () => {
                 <h3 className="text-lg font-medium text-gray-900">Filters</h3>
                 {(selectedJobTypes.length > 0 || selectedExperience.length > 0 || selectedSalary) && (
                   <button
-                    onClick={clearFilters}
+                    onClick={clearAllFilters}
                     className="text-sm text-teal-600 hover:text-teal-700"
                   >
                     Clear all
@@ -534,7 +555,7 @@ const JobsPage = () => {
                 </p>
                 <div className="mt-6">
                   <button
-                    onClick={clearFilters}
+                    onClick={clearAllFilters}
                     className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
                   >
                     Clear all filters

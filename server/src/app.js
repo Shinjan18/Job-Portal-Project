@@ -23,15 +23,21 @@ const app = express();
 const allowedOrigins = [
   'http://localhost:5173',
   'https://job-portal-frontend-omega.vercel.app',
-  'https://job-portal-project-in8xmxtwx-shinjan-vermas-projects.vercel.app',
-  process.env.CLIENT_ORIGIN
+  process.env.CLIENT_ORIGIN,
 ].filter(Boolean);
 
 const corsOptions = {
-  origin: allowedOrigins,
+  origin(origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+      // allow all Vercel preview URLs
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
 // ======================
