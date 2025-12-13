@@ -20,21 +20,18 @@ const app = express();
 // ======================
 // 1. CORS Configuration
 // ======================
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://job-portal-frontend-omega.vercel.app',
+  'https://job-portal-project-in8xmxtwx-shinjan-vermas-projects.vercel.app',
+  process.env.CLIENT_ORIGIN
+].filter(Boolean);
+
 const corsOptions = {
-  origin: [
-    'http://localhost:5173',
-    'https://job-portal-frontend-omega.vercel.app',
-    process.env.CLIENT_ORIGIN
-  ].filter(Boolean),
+  origin: allowedOrigins,
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: [
-    'Content-Type',
-    'Authorization',
-    'X-Requested-With',
-    'Accept',
-    'Origin'
-  ]
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 };
 
 // ======================
