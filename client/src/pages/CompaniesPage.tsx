@@ -1,14 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { jobService } from '../services/jobService';
-
-interface Company {
-  _id: string;
-  name: string;
-  logo?: string;
-  jobCount: number;
-  website?: string;
-}
+import type { Company } from '../services/jobService';
 
 export const CompaniesPage = () => {
   const [companies, setCompanies] = useState<Company[]>([]);

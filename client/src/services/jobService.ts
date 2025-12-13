@@ -1,6 +1,6 @@
 import apiClient from '../api';
 
-interface JobParams {
+export interface JobParams {
   page?: number;
   limit?: number;
   search?: string;
@@ -9,7 +9,7 @@ interface JobParams {
   jobType?: string;
 }
 
-interface Job {
+export interface Job {
   _id: string;
   title: string;
   company: string;
@@ -25,13 +25,21 @@ interface Job {
   updatedAt: string;
 }
 
-interface ApiResponse<T> {
+export interface Company {
+  _id: string;
+  name: string;
+  logo?: string;
+  jobCount: number;
+  website?: string;
+}
+
+export interface ApiResponse<T> {
   success: boolean;
   data: T;
   message?: string;
 }
 
-interface PaginatedResponse<T> extends ApiResponse<{ jobs: T[]; total: number; page: number; limit: number }> {}
+export interface PaginatedResponse<T> extends ApiResponse<{ jobs: T[]; total: number; page: number; limit: number }> {}
 
 export const jobService = {
   // Get all jobs with optional filters
@@ -59,15 +67,15 @@ export const jobService = {
   },
 
   // Get a single job by ID
-  getJobById: async (id: string): Promise<ApiResponse<Job>> => {
+  async getJobById(id: string): Promise<Job> {
     const response = await apiClient.get<ApiResponse<Job>>(`/jobs/${id}`);
-    return response.data;
+    return response.data.data;
   },
 
   // Get featured jobs (first page with 6 items)
   getFeaturedJobs: async (): Promise<Job[]> => {
     const response = await apiClient.get<PaginatedResponse<Job>>('/jobs?page=1&limit=6');
-    return response.data.data?.jobs || [];
+    return response.data.data.jobs;
   },
 
   // Quick apply for a job
@@ -91,14 +99,8 @@ export const jobService = {
   },
 
   // Get all companies
-  getCompanies: async (): Promise<ApiResponse<Array<{
-    _id: string;
-    name: string;
-    logo?: string;
-    jobCount: number;
-    website?: string;
-  }>>> => {
-    const response = await apiClient.get('/companies');
-    return response.data;
+  async getCompanies(): Promise<Company[]> {
+    const response = await apiClient.get<ApiResponse<Company[]>>('/companies');
+    return response.data.data;
   },
 };

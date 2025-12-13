@@ -3,28 +3,13 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { jobService } from '../services/jobService';
 import { useAuth } from '../context/AuthContext';
 import { QuickApplyModal } from '../components/jobs/QuickApplyModal';
-
-interface JobDetail {
-  _id: string;
-  title: string;
-  company: string;
-  location: string;
-  description: string;
-  requirements: string[];
-  responsibilities: string[];
-  salary?: string;
-  jobType: string;
-  experienceLevel: string;
-  skills: string[];
-  createdAt: string;
-  updatedAt: string;
-}
+import type { Job } from '../services/jobService';
 
 export const JobDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const [job, setJob] = useState<JobDetail | null>(null);
+  const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showQuickApply, setShowQuickApply] = useState(false);
