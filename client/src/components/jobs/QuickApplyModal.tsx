@@ -1,0 +1,186 @@
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { jobService } from '../../services/jobService';
+
+interface QuickApplyModalProps {
+  jobId: string;
+  jobTitle: string;
+  companyName: string;
+  onClose: () => void;
+  onSuccess: (data: { trackToken: string }) => void;
+}
+
+export const QuickApplyModal = ({
+  jobId,
+  jobTitle,
+  companyName,
+  onClose,
+  onSuccess,
+}: QuickApplyModalProps) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const { register, handleSubmit, formState: { errors } } = useForm();
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
+
+  const onSubmit = async (data: any) => {
+    if (!resumeFile) {
+      setError('Please upload your resume');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('name', data.name);
+    formData.append('email', data.email);
+    formData.append('phone', data.phone);
+    formData.append('message', data.message || '');
+    formData.append('resume', resumeFile);
+
+    try {
+      setIsSubmitting(true);
+      setError('');
+      const result = await jobService.quickApply(jobId, formData);
+      onSuccess(result);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to submit application');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setResumeFile(e.target.files[0]);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold">Apply for {jobTitle}</h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+            ✕
+          </button>
+        </div>
+        
+        <p className="text-sm text-gray-600 mb-4">at {companyName}</p>
+        
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            {error}
+          </div>
+        )}
+        
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <div className="mb-4">
+            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="name">
+              Full Name *
+            </label>
+            <input
+              id="name"
+              type="text"
+              {...register('name', { required: 'Name is required' })}
+              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={isSubmitting}
+            />
+            {errors.name && (
+              <p className="text-red-500 text-xs mt-1">{errors.name.message as string}</p>
+            )}
+          </div>
+          
+          <div className="mb-4">
+            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="email">
+              Email *
+            </label>
+            <input
+              id="email"
+              type="email"
+              {...register('email', { 
+                required: 'Email is required',
+                pattern: {
+                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                  message: 'Invalid email address',
+                },
+              })}
+              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={isSubmitting}
+            />
+            {errors.email && (
+              <p className="text-red-500 text-xs mt-1">{errors.email.message as string}</p>
+            )}
+          </div>
+          
+          <div className="mb-4">
+            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="phone">
+              Phone *
+            </label>
+            <input
+              id="phone"
+              type="tel"
+              {...register('phone', { 
+                required: 'Phone number is required',
+                pattern: {
+                  value: /^[0-9\-+()\s]+$/,
+                  message: 'Invalid phone number',
+                },
+              })}
+              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={isSubmitting}
+            />
+            {errors.phone && (
+              <p className="text-red-500 text-xs mt-1">{errors.phone.message as string}</p>
+            )}
+          </div>
+          
+          <div className="mb-4">
+            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="resume">
+              Resume (PDF, DOC, DOCX) *
+            </label>
+            <input
+              id="resume"
+              type="file"
+              accept=".pdf,.doc,.docx"
+              onChange={handleFileChange}
+              className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              disabled={isSubmitting}
+            />
+            {!resumeFile && errors.resume && (
+              <p className="text-red-500 text-xs mt-1">Please upload your resume</p>
+            )}
+          </div>
+          
+          <div className="mb-6">
+            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="message">
+              Cover Letter (Optional)
+            </label>
+            <textarea
+              id="message"
+              rows={4}
+              {...register('message')}
+              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={isSubmitting}
+            />
+          </div>
+          
+          <div className="flex justify-end space-x-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              disabled={isSubmitting}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              disabled={isSubmitting || !resumeFile}
+            >
+              {isSubmitting ? 'Submitting...' : 'Submit Application'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};

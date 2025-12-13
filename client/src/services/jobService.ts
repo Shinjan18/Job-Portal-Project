@@ -1,0 +1,104 @@
+import apiClient from '../api';
+
+interface JobParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  type?: string;
+  location?: string;
+  jobType?: string;
+}
+
+interface Job {
+  _id: string;
+  title: string;
+  company: string;
+  location: string;
+  description: string;
+  requirements: string[];
+  responsibilities: string[];
+  salary?: string;
+  jobType: string;
+  experienceLevel: string;
+  skills: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  message?: string;
+}
+
+interface PaginatedResponse<T> extends ApiResponse<{ jobs: T[]; total: number; page: number; limit: number }> {}
+
+export const jobService = {
+  // Get all jobs with optional filters
+  getJobs: async (params: JobParams = {}): Promise<PaginatedResponse<Job>> => {
+    const { 
+      page = 1, 
+      limit = 10, 
+      search, 
+      type, 
+      location, 
+      jobType 
+    } = params;
+    
+    const queryParams = new URLSearchParams();
+    queryParams.append('page', page.toString());
+    queryParams.append('limit', limit.toString());
+    
+    if (search) queryParams.append('search', search);
+    if (type) queryParams.append('type', type);
+    if (location) queryParams.append('location', location);
+    if (jobType) queryParams.append('jobType', jobType);
+    
+    const response = await apiClient.get<PaginatedResponse<Job>>(`/jobs?${queryParams}`);
+    return response.data;
+  },
+
+  // Get a single job by ID
+  getJobById: async (id: string): Promise<ApiResponse<Job>> => {
+    const response = await apiClient.get<ApiResponse<Job>>(`/jobs/${id}`);
+    return response.data;
+  },
+
+  // Get featured jobs (first page with 6 items)
+  getFeaturedJobs: async (): Promise<Job[]> => {
+    const response = await apiClient.get<PaginatedResponse<Job>>('/jobs?page=1&limit=6');
+    return response.data.data?.jobs || [];
+  },
+
+  // Quick apply for a job
+  quickApply: async (jobId: string, formData: FormData): Promise<{ success: boolean; trackToken: string; message?: string }> => {
+    const response = await apiClient.post(
+      `/jobs/${jobId}/quick-apply`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response.data;
+  },
+
+  // Track application status
+  trackApplication: async (token: string) => {
+    const response = await apiClient.get(`/applications/track/${token}`);
+    return response.data;
+  },
+
+  // Get all companies
+  getCompanies: async (): Promise<ApiResponse<Array<{
+    _id: string;
+    name: string;
+    logo?: string;
+    jobCount: number;
+    website?: string;
+  }>>> => {
+    const response = await apiClient.get('/companies');
+    return response.data;
+  },
+};

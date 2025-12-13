@@ -15,12 +15,14 @@ import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 // Main Pages
 import HomePage from './pages/HomePage';
 import JobsPage from './pages/jobs/JobsPage';
-import JobDetailsPage from './pages/jobs/JobDetailsPage';
+import JobDetailPage from './pages/jobs/JobDetailPage';
+import CompaniesPage from './pages/jobs/CompaniesPage';
 import PostJobPage from './pages/employer/PostJobPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import EmployerDashboardPage from './pages/employer/EmployerDashboardPage';
 import ProfilePage from './pages/profile/ProfilePage';
 import ApplicationsPage from './pages/applications/ApplicationsPage';
+import TrackApplicationPage from './pages/applications/TrackApplicationPage';
 
 // Static Pages
 import AboutPage from './pages/static/AboutPage';
@@ -46,7 +48,11 @@ function App() {
             
             {/* Public Routes */}
             <Route path="jobs" element={<JobsPage />} />
-            <Route path="jobs/:id" element={<JobDetailsPage />} />
+            <Route path="jobs/:id" element={<JobDetailPage />} />
+            <Route path="companies" element={<CompaniesPage />} />
+            <Route path="track-application/:token" element={<TrackApplicationPage />} />
+            <Route path="jobs/:id" element={<JobDetailPage />} />
+            <Route path="companies" element={<CompaniesPage />} />
             <Route path="about" element={<AboutPage />} />
             <Route path="contact" element={<ContactPage />} />
             
@@ -95,6 +101,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route path="track" element={<TrackApplicationPage />} />
             
             {/* 404 - Not Found */}
             <Route path="*" element={<NotFoundPage />} />

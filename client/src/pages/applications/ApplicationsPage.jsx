@@ -11,7 +11,9 @@ import {
   ClockIcon,
   CheckCircleIcon,
   XCircleIcon,
-  EyeIcon
+  EyeIcon,
+  DocumentTextIcon,
+  ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 
@@ -20,6 +22,20 @@ const ApplicationsPage = () => {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+
+  // Function to open resume in new tab
+  const openResume = (resumeUrl) => {
+    if (resumeUrl) {
+      window.open(resumeUrl, '_blank');
+    }
+  };
+
+  // Function to download PDF
+  const downloadPdf = (pdfUrl) => {
+    if (pdfUrl) {
+      window.open(pdfUrl, '_blank');
+    }
+  };
 
   useEffect(() => {
     const fetchApplications = async () => {
@@ -167,9 +183,31 @@ const ApplicationsPage = () => {
                   
                   {/* Status Timeline */}
                   <div className="mt-4 pt-4 border-t border-gray-200">
-                    <div className="flex items-center text-sm text-gray-500">
-                      <ClockIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
-                      <span>Last updated: {new Date(application.updatedAt || application.createdAt).toLocaleDateString()}</span>
+                    <div className="flex flex-wrap gap-4 mt-2">
+                      <div className="flex items-center text-sm text-gray-500">
+                        <ClockIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
+                        <span>Applied: {new Date(application.createdAt).toLocaleDateString()}</span>
+                      </div>
+                      
+                      {application.resumeUrl && (
+                        <button 
+                          onClick={() => openResume(application.resumeUrl)}
+                          className="flex items-center text-sm text-teal-600 hover:text-teal-800"
+                        >
+                          <DocumentTextIcon className="flex-shrink-0 mr-1.5 h-4 w-4" />
+                          <span>View Resume</span>
+                        </button>
+                      )}
+                      
+                      {application.pdfUrl && (
+                        <button 
+                          onClick={() => downloadPdf(application.pdfUrl)}
+                          className="flex items-center text-sm text-teal-600 hover:text-teal-800"
+                        >
+                          <ArrowDownTrayIcon className="flex-shrink-0 mr-1.5 h-4 w-4" />
+                          <span>Download Summary</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

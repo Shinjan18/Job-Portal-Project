@@ -3,8 +3,50 @@ const Application = require('../models/Application');
 const Job = require('../models/Job');
 const QuickApplication = require('../models/QuickApplication');
 const auth = require('../middleware/auth');
+const path = require('path');
 
 const router = express.Router();
+
+// Track application status by token
+router.get('/track/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    
+    // Find the application by track token
+    const application = await QuickApplication.findOne({ trackToken: token })
+      .select('-__v -_id -trackToken')
+      .lean();
+    
+    if (!application) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Application not found or invalid tracking token' 
+      });
+    }
+    
+    // Convert relative paths to absolute URLs
+    const baseUrl = process.env.API_BASE_URL || 'http://localhost:5000';
+    
+    // Format the response
+    const response = {
+      ...application,
+      resumeUrl: application.resumeUrl ? `${baseUrl}${application.resumeUrl}` : null,
+      pdfUrl: application.pdfUrl ? `${baseUrl}${application.pdfUrl}` : null,
+      applicationDate: application.createdAt,
+      updatedAt: application.updatedAt
+    };
+    
+    res.json({ success: true, data: response });
+    
+  } catch (error) {
+    console.error('Track application error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error retrieving application',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
 
 // Job seeker: my applications
 router.get('/mine', auth, async (req, res) => {
@@ -12,7 +54,16 @@ router.get('/mine', auth, async (req, res) => {
         const apps = await Application.find({ applicant: req.user.id })
             .populate('job', 'title company location')
             .sort({ createdAt: -1 });
-        res.json(apps);
+        
+        // Enhance applications with full URLs
+        const base = process.env.API_BASE_URL || 'http://localhost:5000';
+        const enhancedApps = apps.map(app => ({
+            ...app.toObject(),
+            resumeUrl: app.resumeUrl ? `${base}${app.resumeUrl}` : '',
+            pdfUrl: app.pdfUrl || ''
+        }));
+        
+        res.json(enhancedApps);
     } catch (err) {
         res.status(500).json({ message: 'Server error' });
     }

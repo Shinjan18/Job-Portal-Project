@@ -3,17 +3,18 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { debounce } from 'lodash';
+import { useAuth } from '../../context/AuthContext';
 
 // Icons
 import {
   BriefcaseIcon,
   MapPinIcon,
-  FilterIcon,
-  XIcon,
-  AdjustmentsIcon,
+  FunnelIcon,
+  XMarkIcon,
+  AdjustmentsHorizontalIcon,
   ClockIcon,
   CurrencyDollarIcon,
-} from '@heroicons/react/outline';
+} from '@heroicons/react/24/outline';
 
 // Components
 import JobCard from '../../components/jobs/JobCard';
@@ -22,7 +23,7 @@ import SearchBar from '../../components/common/SearchBar';
 import Pagination from '../../components/common/Pagination';
 
 // API helper
-import { endpoint } from '../../api';
+import { searchJobs, getMyApplications } from '../../services/jobService';
 
 // Constants
 const JOB_TYPES = ['Full-time', 'Part-time', 'Contract', 'Internship', 'Temporary', 'Remote'];
@@ -35,11 +36,30 @@ const SALARY_RANGES = [
 ];
 
 const JobsPage = () => {
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [totalJobs, setTotalJobs] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
+  const [appliedIds, setAppliedIds] = useState([]);
+
+  // Fetch user's applications
+  useEffect(() => {
+    const fetchApplications = async () => {
+      if (user) {
+        try {
+          const apps = await getMyApplications();
+          const ids = apps.map(app => app.job?._id || app.job);
+          setAppliedIds(ids);
+        } catch (error) {
+          console.error('Error fetching applications:', error);
+        }
+      }
+    };
+
+    fetchApplications();
+  }, [user]);
 
   // Get query parameters
   const page = parseInt(searchParams.get('page') || '1');
@@ -85,12 +105,20 @@ const JobsPage = () => {
           }, {})
         ).toString();
 
-        const res = await fetch(endpoint(`jobs?${qs}`));
-        if (!res.ok) throw new Error(`HTTP ${res.status} - ${res.statusText}`);
-        const data = await res.json();
+        const data = await searchJobs({
+          page,
+          limit,
+          q: searchQuery,
+          location,
+          jobType,
+          experience,
+          salary: salaryRange,
+          sort: sortBy,
+        });
 
-        setJobs(data.jobs || []);
-        setTotalJobs(data.total || 0);
+        const jobsData = Array.isArray(data) ? data : data.jobs || data.data || [];
+        setJobs(jobsData);
+        setTotalJobs(data.total || jobsData.length || 0);
       } catch (error) {
         console.error('Error fetching jobs:', error);
         toast.error('Failed to load jobs. Please try again.');
@@ -243,7 +271,7 @@ const JobsPage = () => {
                   onClick={() => setShowFilters(!showFilters)}
                   className="inline-flex items-center justify-center px-4 py-3 border border-transparent text-sm font-medium rounded-md shadow-sm text-teal-700 bg-white hover:bg-teal-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
                 >
-                  <FilterIcon className="h-5 w-5 mr-2 text-teal-500" />
+                  <FunnelIcon className="h-5 w-5 mr-2 text-teal-500" />
                   Filters
                 </button>
               </div>
@@ -263,7 +291,7 @@ const JobsPage = () => {
                   onClick={() => setShowFilters(false)}
                   className="text-gray-400 hover:text-gray-500"
                 >
-                  <XIcon className="h-6 w-6" />
+                  <XMarkIcon className="h-6 w-6" />
                 </button>
               </div>
               <div className="space-y-6">
@@ -475,7 +503,14 @@ const JobsPage = () => {
             ) : jobs.length > 0 ? (
               <div className="space-y-4">
                 {jobs.map((job) => (
-                  <JobCard key={job._id} job={job} />
+                  <JobCard 
+                    key={job._id} 
+                    job={job} 
+                    appliedIds={appliedIds}
+                    onApplied={(jobId) => {
+                      setAppliedIds(prev => [...prev, jobId]);
+                    }}
+                  />
                 ))}
 
                 {/* Pagination */}
@@ -491,7 +526,7 @@ const JobsPage = () => {
               </div>
             ) : (
               <div className="text-center py-12">
-                <AdjustmentsIcon className="mx-auto h-12 w-12 text-gray-400" />
+                <AdjustmentsHorizontalIcon className="mx-auto h-12 w-12 text-gray-400" />
                 <h3 className="mt-2 text-lg font-medium text-gray-900">No jobs found</h3>
                 <p className="mt-1 text-sm text-gray-500">
                   Try adjusting your search or filter to find what you're looking for.

@@ -1,8 +1,13 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ClockIcon, MapPinIcon, CurrencyDollarIcon, BriefcaseIcon } from '@heroicons/react/24/outline';
 import { formatDistanceToNow } from 'date-fns';
+import QuickApplyModal from '../QuickApplyModal';
+import { toast } from 'react-hot-toast';
 
-const JobCard = ({ job }) => {
+const JobCard = ({ job, appliedIds = [], onApplied }) => {
+  const [showQuickApply, setShowQuickApply] = useState(false);
+  const isApplied = appliedIds.includes(job._id);
   const {
     _id,
     title,
@@ -90,14 +95,40 @@ const JobCard = ({ job }) => {
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end">
+        <div className="mt-6 flex justify-end gap-3">
           <Link
             to={`/jobs/${_id}`}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
+            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50"
           >
             View Details
           </Link>
+          {isApplied ? (
+            <button
+              disabled
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gray-400 cursor-not-allowed"
+            >
+              Applied ✓
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowQuickApply(true)}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
+            >
+              Quick Apply
+            </button>
+          )}
         </div>
+        
+        <QuickApplyModal
+          isOpen={showQuickApply}
+          onClose={() => {
+            setShowQuickApply(false);
+            if (onApplied) {
+              onApplied(job._id);
+            }
+          }}
+          job={job}
+        />
       </div>
     </div>
   );

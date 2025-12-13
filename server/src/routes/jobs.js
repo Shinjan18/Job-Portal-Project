@@ -163,6 +163,137 @@ router.delete('/:id', auth, async (req, res) => {
     }
 });
 
+// Helper function to generate PDF
+function generateApplicationPDF(application, job) {
+  return new Promise((resolve, reject) => {
+    try {
+      const pdfName = `application-${Date.now()}.pdf`;
+      const pdfPath = path.join(pdfDir, pdfName);
+      const doc = new PDFDocument();
+      const stream = fs.createWriteStream(pdfPath);
+      
+      doc.pipe(stream);
+      
+      // PDF Content
+      doc.fontSize(20).text('Job Application', { align: 'center' });
+      doc.moveDown();
+      
+      doc.fontSize(14).text('Job Details', { underline: true });
+      doc.fontSize(12)
+         .text(`Job Title: ${job.title}`)
+         .text(`Company: ${job.company}`)
+         .text(`Location: ${job.location}`)
+         .moveDown();
+      
+      doc.fontSize(14).text('Applicant Information', { underline: true });
+      doc.fontSize(12)
+         .text(`Name: ${application.name}`)
+         .text(`Email: ${application.email}`)
+         .text(`Phone: ${application.phone}`)
+         .moveDown();
+      
+      if (application.message) {
+        doc.fontSize(14).text('Cover Letter', { underline: true });
+        doc.fontSize(12).text(application.message);
+      }
+      
+      doc.end();
+      
+      stream.on('finish', () => resolve({ pdfPath, pdfName }));
+      stream.on('error', reject);
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+// Quick Apply for non-logged in users
+router.post('/:id/quick-apply', upload.single('resume'), async (req, res) => {
+  try {
+    const { name, email, phone, message } = req.body;
+    const jobId = req.params.id;
+    
+    // Basic validation
+    if (!name || !email || !phone || !req.file) {
+      return res.status(400).json({ message: 'Name, email, phone, and resume are required' });
+    }
+    
+    // Find the job
+    const job = await Job.findById(jobId);
+    if (!job) {
+      return res.status(404).json({ message: 'Job not found' });
+    }
+    
+    // Check for duplicate application
+    const existingApp = await QuickApplication.findOne({ jobId, email });
+    if (existingApp) {
+      return res.status(400).json({ message: 'You have already applied to this job' });
+    }
+    
+    // Generate a tracking token
+    const trackToken = crypto.randomBytes(20).toString('hex');
+    
+    // Create the application
+    const application = new QuickApplication({
+      jobId,
+      name,
+      email,
+      phone,
+      message: message || '',
+      resumeUrl: `/uploads/resumes/${req.file.filename}`,
+      trackToken,
+      jobTitle: job.title,
+      company: job.company
+    });
+    
+    // Generate PDF
+    const { pdfName } = await generateApplicationPDF(application, job);
+    application.pdfUrl = `/uploads/pdfs/${pdfName}`;
+    
+    // Save to database
+    await application.save();
+    
+    // Send confirmation email
+    const appUrl = new URL(
+      `/track-application/${trackToken}`, 
+      process.env.CLIENT_ORIGIN || 'http://localhost:3000'
+    ).toString();
+    
+    const emailHtml = `
+      <h2>Your Application Has Been Received</h2>
+      <p>Thank you for applying to the ${job.title} position at ${job.company}.</p>
+      <p>You can track your application status here: <a href="${appUrl}">Track Application</a></p>
+    `;
+    
+    await sendMail({
+      to: email,
+      subject: `Application Submitted: ${job.title} at ${job.company}`,
+      html: emailHtml,
+      attachments: [
+        {
+          filename: 'Application-Summary.pdf',
+          path: path.join(pdfDir, pdfName)
+        }
+      ]
+    });
+    
+    res.status(201).json({ 
+      success: true, 
+      message: 'Application submitted successfully',
+      trackToken
+    });
+    
+  } catch (error) {
+    console.error('Quick apply error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error submitting application',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// Regular apply for logged-in users
 router.post('/:id/apply', auth, async (req, res) => {
     try {
         const job = await Job.findById(req.params.id);
@@ -178,11 +309,42 @@ router.post('/:id/apply', auth, async (req, res) => {
             return res.status(400).json({ message: 'You have already applied for this job' });
         }
         
+        // Get user details
+        const user = await User.findById(req.user.id);
+        
+        // Generate track token
+        const trackToken = crypto.randomBytes(24).toString('hex');
+        const trackUrl = `http://localhost:5173/track?token=${encodeURIComponent(trackToken)}&email=${encodeURIComponent(user.email)}`;
+        
+        // Generate PDF summary
+        const pdfFilename = `summary-${trackToken}.pdf`;
+        const pdfPath = path.join(pdfDir, pdfFilename);
+        const pdfUrl = `/uploads/pdfs/${pdfFilename}`;
+        
+        await new Promise((resolve, reject) => {
+          const doc = new PDFDocument({ margin: 50 });
+          const stream = fs.createWriteStream(pdfPath);
+          doc.pipe(stream);
+          doc.fontSize(18).fillColor('#0ea5a4').text('Application Summary', { align: 'center' });
+          doc.moveDown();
+          doc.fontSize(12).fillColor('#111').text(`Job Title: ${job.title}`);
+          doc.text(`Company: ${job.company}`);
+          doc.text(`Applicant: ${user.name}`);
+          doc.text(`Email: ${user.email}`);
+          doc.text(`Applied: ${new Date().toLocaleString()}`);
+          doc.text(`Application ID: ${trackToken}`);
+          doc.text(`Track URL: ${trackUrl}`);
+          doc.end();
+          stream.on('finish', resolve);
+          stream.on('error', reject);
+        });
+        
         // Create application with status 'Pending'
         const application = await Application.create({
             job: job._id,
             applicant: req.user.id,
-            status: 'Pending'
+            status: 'Pending',
+            pdfUrl: pdfUrl
         });
         
         // Update job applicants array
@@ -194,7 +356,70 @@ router.post('/:id/apply', auth, async (req, res) => {
         // Update user's applied jobs
         await User.findByIdAndUpdate(req.user.id, { $addToSet: { appliedJobs: job._id } });
         
-        res.json({ message: 'Application submitted successfully', application });
+        // Send confirmation email (console fallback if SMTP missing)
+        try {
+          const appliedDate = new Date(application.createdAt).toLocaleString();
+          const brandColor = '#0ea5a4';
+          const htmlBody = `
+<!DOCTYPE html>
+<html>
+<body style="font-family: Arial, sans-serif; background:#f9fafb; padding:20px; color:#111;">
+  <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:10px;overflow:hidden;box-shadow:0 8px 20px rgba(0,0,0,0.06);">
+    <div style="background:${brandColor};color:#fff;padding:16px 20px;font-size:18px;font-weight:700;">Job Portal</div>
+    <div style="padding:20px;">
+      <p style="font-size:16px;">Hi ${user.name},</p>
+      <p>We’ve received your application for <strong>${job.title}</strong> at <strong>${job.company}</strong>.</p>
+      <p style="margin:12px 0;">Status: <strong>${application.status}</strong><br/>Applied: ${appliedDate}<br/>Application ID: ${application._id}</p>
+      <a href="${trackUrl}" style="display:inline-block;background:${brandColor};color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:600;">Track my Application</a>
+      <p style="margin-top:16px;font-size:12px;color:#555;">If the button doesn’t work, copy this link:<br/><span style="color:${brandColor};word-break:break-all;">${trackUrl}</span></p>
+    </div>
+    <div style="background:#f3f4f6;color:#4b5563;padding:14px 20px;font-size:12px;">
+      Need help? Reply to this email${process.env.RECRUITER_EMAIL ? ` or contact ${process.env.RECRUITER_EMAIL}` : ''}.
+    </div>
+  </div>
+</body>
+</html>`;
+
+          const { previewUrl } = await sendMail({
+            from: process.env.EMAIL_FROM || 'no-reply@example.com',
+            to: user.email,
+            cc: process.env.RECRUITER_EMAIL || undefined,
+            subject: `Application received — ${job.title} at ${job.company}`,
+            text: `Hi ${user.name},
+
+Your application for ${job.title} at ${job.company} has been received.
+Status: ${application.status}
+Applied: ${new Date(application.createdAt).toLocaleString()}
+Track: ${trackUrl}
+`,
+            html: htmlBody,
+            attachments: [
+              {
+                filename: 'Application-Summary.pdf',
+                path: pdfPath,
+                contentType: 'application/pdf',
+              },
+            ],
+          });
+
+          if (previewUrl && process.env.NODE_ENV !== 'production') {
+            console.log('[mail] previewUrl:', previewUrl);
+            application.previewUrl = previewUrl;
+          }
+        } catch (mailErr) {
+          console.error('Apply mail error:', mailErr.message);
+        }
+        
+        const apiBase = process.env.API_BASE_URL || 'http://localhost:5000';
+        const pdfUrlFull = `${apiBase}${pdfUrl}`;
+        
+        res.json({ 
+          message: 'Application submitted successfully', 
+          application: {
+            ...application.toObject(),
+            pdfUrlFull
+          }
+        });
     } catch (err) {
         if (err.code === 11000) {
             return res.status(400).json({ message: 'You have already applied for this job' });
