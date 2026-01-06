@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { getJobApplications } from '../../services/jobService';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
+import { getEmployerOverview } from '../../services/employerService';
+import { getMyJobs, deleteJob } from '../../services/jobService';
 import {
   BriefcaseIcon,
   UsersIcon,
@@ -13,14 +14,18 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   EyeIcon,
-  ChatBubbleLeftRightIcon
+  ChatBubbleLeftRightIcon,
+  PencilIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 
 const EmployerDashboardPage = () => {
   const { user } = useAuth();
   const [applications, setApplications] = useState([]);
+  const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalJobs: 0,
     totalApplications: 0,
@@ -31,87 +36,53 @@ const EmployerDashboardPage = () => {
     accepted: 0
   });
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true);
-        // In a real app, we would fetch:
-        // 1. Employer's jobs
-        // 2. Applications to those jobs
-        // 3. Statistics
-        
-        // For now, we'll mock the data
-        const mockApplications = [
-          {
-            _id: '1',
-            job: {
-              _id: 'job1',
-              title: 'Senior React Developer',
-              company: 'TechCorp'
-            },
-            applicant: {
-              _id: 'user1',
-              name: 'John Doe',
-              email: 'john@example.com'
-            },
-            status: 'Pending',
-            createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
-          },
-          {
-            _id: '2',
-            job: {
-              _id: 'job2',
-              title: 'Frontend Engineer',
-              company: 'TechCorp'
-            },
-            applicant: {
-              _id: 'user2',
-              name: 'Jane Smith',
-              email: 'jane@example.com'
-            },
-            status: 'Under Review',
-            createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
-          },
-          {
-            _id: '3',
-            job: {
-              _id: 'job1',
-              title: 'Senior React Developer',
-              company: 'TechCorp'
-            },
-            applicant: {
-              _id: 'user3',
-              name: 'Bob Johnson',
-              email: 'bob@example.com'
-            },
-            status: 'Interview',
-            createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
-          }
-        ];
-        
-        setApplications(mockApplications);
-        
-        // Calculate mock stats
-        const newStats = {
-          totalJobs: 5,
-          totalApplications: mockApplications.length,
-          pending: mockApplications.filter(app => app.status === 'Pending').length,
-          reviewed: mockApplications.filter(app => app.status === 'Under Review').length,
-          interviews: mockApplications.filter(app => app.status === 'Interview').length,
-          rejected: 2,
-          accepted: 1
-        };
-        setStats(newStats);
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-        toast.error('Failed to load dashboard data');
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const [overviewData, jobsData] = await Promise.all([
+        getEmployerOverview(),
+        getMyJobs()
+      ]);
 
+      setStats({
+        totalJobs: overviewData.totalJobs || 0,
+        totalApplications: overviewData.totalApplications || 0,
+        pending: overviewData.pending || 0,
+        reviewed: 0, // overview doesn't return this yet, maybe needed
+        interviews: overviewData.interviews || 0,
+        rejected: 0,
+        accepted: 0
+      });
+      setApplications(overviewData.recent || []);
+      setJobs(jobsData.slice(0, 5) || []); // Show top 5 recent jobs
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      toast.error('Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchDashboardData();
   }, []);
+
+  const handleDeleteJob = async (jobId) => {
+    if (window.confirm('Are you sure you want to delete this job?')) {
+      try {
+        await deleteJob(jobId);
+        toast.success('Job deleted successfully');
+        fetchDashboardData();
+      } catch (error) {
+        console.error('Error deleting job:', error);
+        toast.error(error.message || 'Failed to delete job');
+      }
+    }
+  };
+
+  const handleEditJob = (job) => {
+    navigate('/employer/post-job', { state: { job, isEdit: true } });
+  };
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -221,13 +192,90 @@ const EmployerDashboardPage = () => {
           </div>
         </div>
 
+        {/* Jobs Posted Section */}
+        <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-8">
+          <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-900">Jobs Posted</h3>
+              <Link
+                to="/employer/jobs"
+                className="text-sm font-medium text-teal-600 hover:text-teal-500"
+              >
+                Manage Jobs
+              </Link>
+            </div>
+          </div>
+          <div className="divide-y divide-gray-200">
+            {jobs.length === 0 ? (
+              <div className="px-4 py-8 text-center">
+                <BriefcaseIcon className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No jobs posted</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Get started by creating a new job listing.
+                </p>
+                <div className="mt-6">
+                  <Link
+                    to="/employer/post-job"
+                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
+                  >
+                    Post a Job
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              jobs.map((job) => (
+                <div key={job._id} className="px-4 py-4 sm:px-6 hover:bg-gray-50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center">
+                        <p className="text-sm font-medium text-teal-600 truncate">
+                          {job.title}
+                        </p>
+                        <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Active
+                        </span>
+                      </div>
+                      <div className="mt-1 flex flex-col sm:flex-row sm:items-center text-sm text-gray-500">
+                        <span className="flex items-center mr-4">
+                          <MapPinIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
+                          {job.location}
+                        </span>
+                        <span className="flex items-center">
+                          <CalendarIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
+                          Posted on {new Date(job.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="ml-4 flex-shrink-0 flex space-x-2">
+                      <button
+                        onClick={() => handleEditJob(job)}
+                        className="text-indigo-600 hover:text-indigo-900 p-1"
+                        title="Edit"
+                      >
+                        <PencilIcon className="h-5 w-5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteJob(job._id)}
+                        className="text-red-600 hover:text-red-900 p-1"
+                        title="Delete"
+                      >
+                        <TrashIcon className="h-5 w-5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
         {/* Recent Applications */}
         <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-8">
           <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-medium text-gray-900">Recent Applications</h3>
-              <Link 
-                to="/employer/applications" 
+              <Link
+                to="/employer/applications"
                 className="text-sm font-medium text-teal-600 hover:text-teal-500"
               >
                 View all applications

@@ -7,7 +7,8 @@ const applicationSchema = new mongoose.Schema(
         status: { type: String, enum: ['Pending', 'Submitted', 'Under Review', 'Interview', 'Rejected', 'Accepted', 'Approved'], default: 'Pending' },
         resumeUrl: { type: String, default: '' },
         pdfUrl: { type: String, default: '' },
-        note: { type: String, default: '' }
+        note: { type: String, default: '' },
+        accountEmail: { type: String, default: null }
     },
     { timestamps: true }
 );

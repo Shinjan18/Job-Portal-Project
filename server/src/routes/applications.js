@@ -1,6 +1,7 @@
 const express = require('express');
 const Application = require('../models/Application');
 const Job = require('../models/Job');
+const User = require('../models/User');
 const QuickApplication = require('../models/QuickApplication');
 const auth = require('../middleware/auth');
 const path = require('path');
@@ -9,62 +10,110 @@ const router = express.Router();
 
 // Track application status by token
 router.get('/track/:token', async (req, res) => {
-  try {
-    const { token } = req.params;
-    
-    // Find the application by track token
-    const application = await QuickApplication.findOne({ trackToken: token })
-      .select('-__v -_id -trackToken')
-      .lean();
-    
-    if (!application) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Application not found or invalid tracking token' 
-      });
+    try {
+        const { token } = req.params;
+
+        // Find the application by track token
+        const application = await QuickApplication.findOne({ trackToken: token })
+            .select('-__v -_id -trackToken')
+            .lean();
+
+        if (!application) {
+            return res.status(404).json({
+                success: false,
+                message: 'Application not found or invalid tracking token'
+            });
+        }
+
+        // Convert relative paths to absolute URLs
+        const baseUrl = process.env.API_BASE_URL || 'http://localhost:5000';
+
+        // Format the response
+        const response = {
+            ...application,
+            resumeUrl: application.resumeUrl ? `${baseUrl}${application.resumeUrl}` : null,
+            pdfUrl: application.pdfUrl ? `${baseUrl}${application.pdfUrl}` : null,
+            applicationDate: application.createdAt,
+            updatedAt: application.updatedAt
+        };
+
+        res.json({ success: true, data: response });
+
+    } catch (error) {
+        console.error('Track application error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error retrieving application',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
-    
-    // Convert relative paths to absolute URLs
-    const baseUrl = process.env.API_BASE_URL || 'http://localhost:5000';
-    
-    // Format the response
-    const response = {
-      ...application,
-      resumeUrl: application.resumeUrl ? `${baseUrl}${application.resumeUrl}` : null,
-      pdfUrl: application.pdfUrl ? `${baseUrl}${application.pdfUrl}` : null,
-      applicationDate: application.createdAt,
-      updatedAt: application.updatedAt
-    };
-    
-    res.json({ success: true, data: response });
-    
-  } catch (error) {
-    console.error('Track application error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error retrieving application',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
 });
 
-// Job seeker: my applications
+// Job seeker: my applications (Unified)
 router.get('/mine', auth, async (req, res) => {
     try {
-        const apps = await Application.find({ applicant: req.user.id })
+        const user = await User.findById(req.user.id); // Get full user for email check
+
+        // 1. Regular Applications (linked by applicant ID)
+        const regularApps = await Application.find({ applicant: req.user.id })
             .populate('job', 'title company location')
-            .sort({ createdAt: -1 });
-        
-        // Enhance applications with full URLs
+            .populate('job', 'title company location')
+            .lean();
+
+
+        // 2. Quick Applications (linked by userId OR accountEmail OR form email)
+        const quickApps = await QuickApplication.find({
+            $or: [
+                { userId: req.user.id },
+                { accountEmail: user.email }, // Matches logged-in email
+                { email: user.email } // Matches form email (legacy/guest matching)
+            ]
+        }).lean();
+
+        // 3. Normalize and Combine
         const base = process.env.API_BASE_URL || 'http://localhost:5000';
-        const enhancedApps = apps.map(app => ({
-            ...app.toObject(),
+
+        const normalizedRegular = regularApps.map(app => ({
+            _id: app._id.toString(),
+            jobId: app.job && app.job._id ? app.job._id.toString() : null,
+            jobTitle: app.job?.title || 'Unknown Job',
+            company: app.job?.company || 'Unknown Company',
+            status: app.status,
+            createdAt: app.createdAt,
             resumeUrl: app.resumeUrl ? `${base}${app.resumeUrl}` : '',
-            pdfUrl: app.pdfUrl || ''
+            pdfUrl: app.pdfUrl ? `${base}${app.pdfUrl}` : '',
+            source: 'regular',
+            displayName: user.name,
+            displayEmail: user.email,
+            // Keep full job object for frontend compatibility if needed
+            job: app.job
         }));
-        
-        res.json(enhancedApps);
+
+        const normalizedQuick = quickApps.map(app => ({
+            _id: app._id.toString(),
+            jobId: app.jobId ? app.jobId.toString() : null, // QuickApp stores jobId directly
+            jobTitle: app.jobTitle,
+            company: app.company,
+            status: app.status,
+            createdAt: app.createdAt,
+            resumeUrl: app.resumeUrl ? `${base}${app.resumeUrl}` : '',
+            pdfUrl: app.pdfUrl ? `${base}${app.pdfUrl}` : '',
+            source: 'quick',
+            displayName: app.name,
+            displayEmail: app.email,
+            trackToken: app.trackToken, // Expose tracking token
+            // Mock job object for frontend compatibility
+            job: { _id: app.jobId ? app.jobId.toString() : null, title: app.jobTitle, company: app.company, location: 'Remote/Unknown' }
+        }));
+
+        const allApps = [...normalizedRegular, ...normalizedQuick];
+
+        // Sort by newest first
+        allApps.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+        res.json(allApps);
     } catch (err) {
+        console.error('Error fetching my applications:', err);
         res.status(500).json({ message: 'Server error' });
     }
 });

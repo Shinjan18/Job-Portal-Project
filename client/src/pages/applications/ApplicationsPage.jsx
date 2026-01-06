@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { getMyApplications } from '../../services/jobService';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import {
   BriefcaseIcon,
@@ -22,6 +22,19 @@ const ApplicationsPage = () => {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const navigate = useNavigate();
+
+  const handleViewJob = (app) => {
+    const jobId = app.jobId || app.job?._id;
+    console.log('View Job clicked for app:', app._id, 'Job Identifier:', jobId);
+
+    if (jobId) {
+      navigate(`/jobs/${jobId}`);
+    } else {
+      console.error('View Job: missing jobId for application', app._id);
+      toast.error('Job is no longer available');
+    }
+  };
 
   // Function to open resume in new tab
   const openResume = (resumeUrl) => {
@@ -75,8 +88,8 @@ const ApplicationsPage = () => {
     }
   };
 
-  const filteredApplications = filter === 'all' 
-    ? applications 
+  const filteredApplications = filter === 'all'
+    ? applications
     : applications.filter(app => app.status.toLowerCase() === filter.toLowerCase());
 
   const statusOptions = [
@@ -112,11 +125,10 @@ const ApplicationsPage = () => {
               <button
                 key={option.value}
                 onClick={() => setFilter(option.value)}
-                className={`px-4 py-2 text-sm font-medium rounded-full ${
-                  filter === option.value
-                    ? 'bg-teal-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                }`}
+                className={`px-4 py-2 text-sm font-medium rounded-full ${filter === option.value
+                  ? 'bg-teal-600 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                  }`}
               >
                 {option.label}
               </button>
@@ -132,8 +144,8 @@ const ApplicationsPage = () => {
                 <BriefcaseIcon className="mx-auto h-12 w-12 text-gray-400" />
                 <h3 className="mt-2 text-sm font-medium text-gray-900">No applications found</h3>
                 <p className="mt-1 text-sm text-gray-500">
-                  {filter === 'all' 
-                    ? 'Get started by applying to jobs that match your skills.' 
+                  {filter === 'all'
+                    ? 'Get started by applying to jobs that match your skills.'
                     : `You don't have any applications with status "${filter}".`}
                 </p>
                 <div className="mt-6">
@@ -171,16 +183,17 @@ const ApplicationsPage = () => {
                       )}
                     </div>
                     <div className="mt-4 sm:mt-0 sm:ml-4 flex-shrink-0">
-                      <Link
-                        to={`/jobs/${application.job?._id || '#'}`}
+                      <button
+                        onClick={() => handleViewJob(application)}
                         className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
+                        type="button"
                       >
                         <EyeIcon className="h-4 w-4 mr-2" />
                         View Job
-                      </Link>
+                      </button>
                     </div>
                   </div>
-                  
+
                   {/* Status Timeline */}
                   <div className="mt-4 pt-4 border-t border-gray-200">
                     <div className="flex flex-wrap gap-4 mt-2">
@@ -188,9 +201,9 @@ const ApplicationsPage = () => {
                         <ClockIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
                         <span>Applied: {new Date(application.createdAt).toLocaleDateString()}</span>
                       </div>
-                      
+
                       {application.resumeUrl && (
-                        <button 
+                        <button
                           onClick={() => openResume(application.resumeUrl)}
                           className="flex items-center text-sm text-teal-600 hover:text-teal-800"
                         >
@@ -198,15 +211,24 @@ const ApplicationsPage = () => {
                           <span>View Resume</span>
                         </button>
                       )}
-                      
+
                       {application.pdfUrl && (
-                        <button 
+                        <button
                           onClick={() => downloadPdf(application.pdfUrl)}
                           className="flex items-center text-sm text-teal-600 hover:text-teal-800"
                         >
                           <ArrowDownTrayIcon className="flex-shrink-0 mr-1.5 h-4 w-4" />
                           <span>Download Summary</span>
                         </button>
+                      )}
+                      {application.trackToken && (
+                        <Link
+                          to={`/track?token=${application.trackToken}&email=${encodeURIComponent(application.displayEmail)}`}
+                          className="flex items-center text-sm text-teal-600 hover:text-teal-800"
+                        >
+                          <EyeIcon className="flex-shrink-0 mr-1.5 h-4 w-4" />
+                          <span>Track Application</span>
+                        </Link>
                       )}
                     </div>
                   </div>

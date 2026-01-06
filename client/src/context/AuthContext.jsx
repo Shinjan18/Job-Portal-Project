@@ -39,7 +39,7 @@ export const AuthProvider = ({ children }) => {
       if (response.token) {
         localStorage.setItem('token', response.token);
         setUser(response.user);
-        navigate(response.user.role === 'employer' ? '/employer/dashboard' : '/dashboard');
+        navigate(response.user.role === 'employer' ? '/employer' : '/dashboard');
         return { success: true };
       }
       throw new Error('Invalid response from server');
@@ -58,7 +58,7 @@ export const AuthProvider = ({ children }) => {
       if (response.token) {
         localStorage.setItem('token', response.token);
         setUser(response.user);
-        navigate(response.user.role === 'employer' ? '/employer/dashboard' : '/dashboard');
+        navigate(response.user.role === 'employer' ? '/employer' : '/dashboard');
         return { success: true };
       }
       throw new Error('Registration failed. Please try again.');

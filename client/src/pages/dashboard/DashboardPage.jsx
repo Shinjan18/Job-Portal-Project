@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { getMyApplications } from '../../services/jobService';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import {
   BriefcaseIcon,
@@ -28,6 +28,19 @@ const DashboardPage = () => {
     rejected: 0,
     accepted: 0
   });
+  const navigate = useNavigate();
+
+  const handleViewJob = (app) => {
+    const jobId = app.jobId || app.job?._id;
+    console.log('View Job clicked for app:', app._id, 'Job Identifier:', jobId);
+
+    if (jobId) {
+      navigate(`/jobs/${jobId}`);
+    } else {
+      console.error('View Job: missing jobId for application', app._id);
+      toast.error('Job is no longer available');
+    }
+  };
 
   useEffect(() => {
     const fetchApplications = async () => {
@@ -35,7 +48,7 @@ const DashboardPage = () => {
         setLoading(true);
         const apps = await getMyApplications();
         setApplications(apps);
-        
+
         // Calculate stats
         const newStats = {
           totalApplications: apps.length,
@@ -152,8 +165,8 @@ const DashboardPage = () => {
           <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-medium text-gray-900">Recent Applications</h3>
-              <Link 
-                to="/applications" 
+              <Link
+                to="/applications"
                 className="text-sm font-medium text-teal-600 hover:text-teal-500"
               >
                 View all applications
@@ -198,13 +211,22 @@ const DashboardPage = () => {
                         </span>
                       </div>
                     </div>
-                    <div className="ml-4 flex-shrink-0">
-                      <Link
-                        to={`/jobs/${application.job?._id || '#'}`}
+                    <div className="ml-4 flex-shrink-0 flex flex-col items-end gap-2">
+                      <button
+                        onClick={() => handleViewJob(application)}
                         className="text-teal-600 hover:text-teal-900"
+                        type="button"
                       >
                         View Job
-                      </Link>
+                      </button>
+                      {application.trackToken && (
+                        <Link
+                          to={`/track?token=${application.trackToken}&email=${encodeURIComponent(application.displayEmail)}`}
+                          className="text-sm font-medium text-teal-600 hover:text-teal-500 underline"
+                        >
+                          Track Application
+                        </Link>
+                      )}
                     </div>
                   </div>
                 </div>

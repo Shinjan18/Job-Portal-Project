@@ -13,6 +13,7 @@ const jobRoutes = require('./routes/jobs');
 const profileRoutes = require('./routes/profile');
 const applicationRoutes = require('./routes/applications');
 const applyAliasRoutes = require('./routes/apply');
+const employerRoutes = require('./routes/employer');
 const staticRouter = require('./profile_static');
 
 const app = express();
@@ -93,8 +94,8 @@ app.get('/', (req, res) => {
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    success: true, 
+  res.json({
+    success: true,
     status: 'OK',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
@@ -110,6 +111,7 @@ app.use('/api/jobs', jobRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/apply', applyAliasRoutes);
+app.use('/api/employer', employerRoutes);
 app.use('/api', staticRouter);
 
 // ======================
@@ -117,8 +119,8 @@ app.use('/api', staticRouter);
 // ======================
 // 404 Handler
 app.use((req, res) => {
-  res.status(404).json({ 
-    success: false, 
+  res.status(404).json({
+    success: false,
     message: 'Resource not found',
     path: req.path
   });
@@ -129,8 +131,8 @@ app.use((err, req, res, next) => {
   console.error('Error:', err);
   res.status(500).json({
     success: false,
-    message: process.env.NODE_ENV === 'production' 
-      ? 'Internal server error' 
+    message: process.env.NODE_ENV === 'production'
+      ? 'Internal server error'
       : err.message,
     ...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
   });
@@ -191,6 +193,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-connect().then(() => setTimeout(() => { seedJobs().catch(() => {}) }, 250));
+connect().then(() => setTimeout(() => { seedJobs().catch(() => { }) }, 250));
 
 module.exports = app;

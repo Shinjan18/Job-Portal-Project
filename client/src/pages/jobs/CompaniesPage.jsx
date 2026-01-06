@@ -24,9 +24,9 @@ const CompaniesPage = () => {
         setLoading(true);
         // For now, we'll get companies from the jobs collection
         // In a real implementation, you'd have a separate companies collection
-        const response = await apiClient.get('/jobs');
+        const response = await apiClient.get('/jobs?limit=100');
         const jobsData = response.data.jobs || response.data || [];
-        
+
         // Extract unique companies from jobs
         const uniqueCompanies = {};
         jobsData.forEach(job => {
@@ -41,7 +41,7 @@ const CompaniesPage = () => {
             uniqueCompanies[job.company].jobCount += 1;
           }
         });
-        
+
         const companiesArray = Object.values(uniqueCompanies);
         setCompanies(companiesArray);
       } catch (error) {

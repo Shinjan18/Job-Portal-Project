@@ -22,7 +22,12 @@ const ProtectedRoute = ({ children, roles = [] }) => {
   // Check if route is role-protected and user has the required role
   if (roles.length > 0 && !roles.includes(user.role)) {
     // Redirect to unauthorized page or home
-    return <Navigate to="/unauthorized" state={{ from: location }} replace />;
+    // Redirect to their appropriate dashboard
+    if (user.role === 'employer') {
+      return <Navigate to="/employer" replace />;
+    } else {
+      return <Navigate to="/dashboard" replace />;
+    }
   }
 
   // User is authenticated and has the required role

@@ -13,6 +13,8 @@ const quickApplicationSchema = new mongoose.Schema(
     pdfUrl: { type: String, default: '' },
     jobTitle: { type: String, default: '' },
     company: { type: String, default: '' },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }, // Linked account if logged in
+    accountEmail: { type: String, default: null } // Logged-in email (source of truth)
   },
   { timestamps: true }
 );

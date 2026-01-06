@@ -20,6 +20,9 @@ import CompaniesPage from './pages/jobs/CompaniesPage';
 import PostJobPage from './pages/employer/PostJobPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import EmployerDashboardPage from './pages/employer/EmployerDashboardPage';
+import ManageJobsPage from './pages/employer/ManageJobsPage';
+import EmployerApplicationsPage from './pages/employer/EmployerApplicationsPage';
+import ApplicationReviewPage from './pages/employer/ApplicationReviewPage';
 import ProfilePage from './pages/profile/ProfilePage';
 import ApplicationsPage from './pages/applications/ApplicationsPage';
 import TrackApplicationPage from './pages/applications/TrackApplicationPage';
@@ -45,7 +48,7 @@ function App() {
           {/* Main Routes */}
           <Route path="/" element={<MainLayout />}>
             <Route index element={<HomePage />} />
-            
+
             {/* Public Routes */}
             <Route path="jobs" element={<JobsPage />} />
             <Route path="jobs/:id" element={<JobDetailPage />} />
@@ -55,7 +58,7 @@ function App() {
             <Route path="companies" element={<CompaniesPage />} />
             <Route path="about" element={<AboutPage />} />
             <Route path="contact" element={<ContactPage />} />
-            
+
             {/* Protected Routes - Job Seeker */}
             <Route
               path="dashboard"
@@ -65,7 +68,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            
+
             {/* Protected Routes - Employer */}
             <Route
               path="employer"
@@ -83,7 +86,31 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            
+            <Route
+              path="employer/jobs"
+              element={
+                <ProtectedRoute roles={['employer']}>
+                  <ManageJobsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="employer/applications"
+              element={
+                <ProtectedRoute roles={['employer']}>
+                  <EmployerApplicationsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="employer/applications/:id"
+              element={
+                <ProtectedRoute roles={['employer']}>
+                  <ApplicationReviewPage />
+                </ProtectedRoute>
+              }
+            />
+
             {/* Common Protected Routes */}
             <Route
               path="profile"
@@ -102,7 +129,7 @@ function App() {
               }
             />
             <Route path="track" element={<TrackApplicationPage />} />
-            
+
             {/* 404 - Not Found */}
             <Route path="*" element={<NotFoundPage />} />
           </Route>

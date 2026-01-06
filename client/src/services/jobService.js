@@ -6,13 +6,13 @@ export const getJobs = async (filters = {}) => {
   try {
     const { q, jobType, location, page = 1, limit = 10 } = filters;
     const params = new URLSearchParams();
-    
+
     if (q) params.append('q', q);
     if (jobType) params.append('type', jobType);
     if (location) params.append('location', location);
     if (page) params.append('page', page);
     if (limit) params.append('limit', limit);
-    
+
     const response = await apiClient.get(`${JOB_API}?${params.toString()}`);
     return response.data;
   } catch (error) {
@@ -29,6 +29,16 @@ export const getJobById = async (id) => {
     return response.data;
   } catch (error) {
     throw new Error(error.response?.data?.message || 'Failed to fetch job details');
+  }
+};
+
+// Get jobs posted by the current employer
+export const getMyJobs = async () => {
+  try {
+    const response = await apiClient.get(`${JOB_API}/my`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to fetch your posted jobs');
   }
 };
 
